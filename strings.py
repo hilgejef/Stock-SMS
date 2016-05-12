@@ -19,5 +19,14 @@ Last Trade Time: {last_trade_time}
 # Called when sending (SYMBOL) SUBSCRIBE response
 subscription_response = "You've been subscribed to daily stock alerts for {symbol}"
 
+# Called when (SYMBOL) SUBSCRIBE returns preexisting tracker
+already_subscribed = "You are already subscribed to daily stock alerts for {symbol}"
+
+# Called when sending (SYMBOL) UNSUBSCRIBE response
+unsubscribed = "You have been successfuly unsubscribed from alerts for {symbol}"
+
+# Called when (SYMBOL) UNSUBSCRIBE returns no existing tracker
+not_subscribed = "You were not previously subscribed to alerts for {symbol}"
+
 # Called when accessing MySQL database from flask_app
 db_uri_string = "mysql+mysqlconnector://{username}:{password}@{hostname}/{databasename}"

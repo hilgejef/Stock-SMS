@@ -1,5 +1,6 @@
 import os
 import ystockquote
+import strings
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from twilio import twiml
@@ -7,14 +8,13 @@ from urlparse import urlparse
 from twilio.rest.resources import Connection
 from twilio.rest.resources.connection import PROXY_TYPE_HTTP
 from credentials import DB_Credentials
-from strings import symbol_response, expanded_response, subscription_response, db_uri_string
 
 
 ### BASIC APP INITIALIZATIONS
 
 app = Flask(__name__)
 
-SQLALCHEMY_DATABASE_URI = db_uri_string.format(
+SQLALCHEMY_DATABASE_URI = strings.db_uri_string.format(
         username=DB_Credentials.user,
         password=DB_Credentials.pw,
         hostname="Hilger.mysql.pythonanywhere-services.com",
@@ -72,17 +72,41 @@ def sms_response():
     # (SYMBOL) "SUBSCRIBE" -> Add (SYMBOL, PHONE#) to the database.
     if len(incoming) == 2 and incoming[1] == "SUBSCRIBE":
         symbol = incoming[0]
-        tracker = Tracker(phone_number=from_, symbol=symbol)
-        db.session.add(tracker)
-        db.session.commit()
 
-        resp.message(subscription_response.format(symbol=symbol))
+        tracker = Tracker.query.filter_by(phone_number=from_, symbol=symbol).first()
+
+        # Check for preexisting tracker before attempting add, respond
+        # accordingly
+        if not tracker:
+            db.session.add(Tracker(phone_number=from_, symbol=symbol))
+            db.session.commit()
+
+            resp.message(strings.subscription_response.format(symbol=symbol))
+
+        else:
+            resp.message(strings.already_subscribed.format(symbol=symbol))
+
+    # (SYMBOL) "UNSUBSCRIBE" -> Remove (SYMBOL, PHONE#) from the database
+    elif len(incoming) == 2 and incoming[1] == "UNSUBSCRIBE":
+        symbol = incoming[0]
+
+        tracker = Tracker.query.filter_by(phone_number=from_, symbol=symbol).first()
+
+        # Check for preexisting tracker before attempting delete, respond
+        # accordingly
+        if not tracker:
+            resp.message(strings.not_subscribed.format(symbol=symbol))
+        else:
+            db.session.delete(tracker)
+            db.session.commit()
+
+            resp.message(strings.unsubscribed.format(symbol=symbol))
 
     # (SYMBOL) "MORE INFO" -> Send expanded (SYMBOL) information
     elif len(incoming) == 3 and incoming[1] == "MORE" and incoming[2] == "INFO":
         symbol = incoming[0]
 
-        message = expanded_response.format(
+        outgoing = strings.expanded_response.format(
                     symbol=symbol,
                     last_trade_price=ystockquote.get_last_trade_price(symbol),
                     opening_price=ystockquote.get_today_open(symbol),
@@ -92,16 +116,17 @@ def sms_response():
                     last_trade_time=ystockquote.get_last_trade_time(symbol)
                 )
 
-        resp.message(message)
+        resp.message(outgoing)
 
     # (SYMBOL) ... -> Send (SYMBOL) stock price for each symbol
     # Symbols should be white-space delimited (e.g. SYMBOL SYMBOL ...)
     else:
         outgoing = []
 
+        # Build list of stock prices and join as newline delimited string
         for symbol in incoming:
             price = ystockquote.get_last_trade_price(symbol)
-            outgoing.append(symbol_response.format(symbol=symbol, price=price))
+            outgoing.append(strings.symbol_response.format(symbol=symbol, price=price))
 
         resp.message(",\n".join(outgoing))
 
