@@ -16,6 +16,17 @@ Today's Low: {price_low},
 Last Trade Time: {last_trade_time}
 """
 
+# Called when sending daily tracker alerts for subscribers
+tracker_alert = \
+"""
+Your daily stock alert for {symbol},
+Last Trade Price: {last_trade_price},
+Today's Opening: {opening_price},
+Previous Closing: {closing_price},
+Today's High: {price_high},
+Today's Low: {price_low}
+"""
+
 # Called when sending (SYMBOL) SUBSCRIBE response
 subscription_response = "You've been subscribed to daily stock alerts for {symbol}"
 
