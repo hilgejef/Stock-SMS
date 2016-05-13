@@ -4,7 +4,6 @@
 # as SMS replies.
 
 import os
-import ystockquote
 import strings
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
@@ -13,6 +12,8 @@ from urlparse import urlparse
 from twilio.rest.resources import Connection
 from twilio.rest.resources.connection import PROXY_TYPE_HTTP
 from credentials import DB_Credentials
+from request_stock_info import get_all_symbol
+from ystockquote import get_last_trade_price
 
 
 ### BASIC APP INITIALIZATIONS
@@ -107,21 +108,23 @@ def sms_response():
 
             resp.message(strings.unsubscribed.format(symbol=symbol))
 
-    # (SYMBOL) "MORE INFO" -> Send expanded (SYMBOL) information
-    elif len(incoming) == 2 and incoming[1] == "EXPAND":
-        symbol = incoming[0]
+    # (SYMBOL) ... "EXPAND" -> Send expanded (SYMBOL) information for each symbol
+    elif incoming[-1] == "EXPAND":
+        for symbol in incoming[:-1]:
 
-        outgoing = strings.expanded_response.format(
-                    symbol=symbol,
-                    last_trade_price=ystockquote.get_last_trade_price(symbol),
-                    opening_price=ystockquote.get_today_open(symbol),
-                    closing_price=ystockquote.get_previous_close(symbol),
-                    price_high=ystockquote.get_todays_high(symbol),
-                    price_low=ystockquote.get_todays_low(symbol),
-                    last_trade_time=ystockquote.get_last_trade_time(symbol)
-                )
+            info = get_all_symbol(symbol)
 
-        resp.message(outgoing)
+            outgoing = strings.expanded_response.format(
+                        symbol=symbol,
+                        last_trade_price=info["last_trade_price"],
+                        opening_price=info["today_open"],
+                        closing_price=info["previous_close"],
+                        price_high=info["todays_high"],
+                        price_low=info["todays_low"],
+                        last_trade_time=info["last_trade_time"]
+                    )
+
+            resp.message(outgoing)
 
     # (SYMBOL) ... -> Send (SYMBOL) stock price for each symbol
     # Symbols should be white-space delimited (e.g. SYMBOL SYMBOL ...)
@@ -130,7 +133,7 @@ def sms_response():
 
         # Build list of stock prices and join as newline delimited string
         for symbol in incoming:
-            price = ystockquote.get_last_trade_price(symbol)
+            price = get_last_trade_price(symbol)
             outgoing.append(strings.symbol_response.format(symbol=symbol, price=price))
 
         resp.message(",\n".join(outgoing))
