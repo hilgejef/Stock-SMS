@@ -1,6 +1,6 @@
 # alert_trackers.py
-# This script queries the database for all trackers and sends expanded
-# stock information for each PHONE#, SYMBOL pair
+# This script queries the tracker database and sends expanded expanded
+# information to each subscription.
 
 import os
 from credentials import Twilio_Credentials
@@ -21,8 +21,8 @@ proxy_url = os.environ.get("http_proxy")
 host, port = urlparse(proxy_url).netloc.split(":")
 Connection.set_proxy_info(host, int(port), proxy_type=PROXY_TYPE_HTTP)
 
-# Create map of symbol : [phone numbers] using ORDER BY call to Tracker
-# database, then send
+# Loop through trackers, ordered by symbol, make API call for symbol only
+# once by keeping track of current symbol, then send info to each number.
 current_symbol = None
 for tracker in Tracker.query.order_by("symbol"):
     if tracker.symbol != current_symbol:
